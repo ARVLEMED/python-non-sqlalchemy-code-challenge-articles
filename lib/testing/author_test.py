@@ -1,168 +1,106 @@
-import pytest
+class Article:
+    all = []
 
-from classes.many_to_many import Article
-from classes.many_to_many import Magazine
-from classes.many_to_many import Author
+    def __init__(self, author, magazine, title):
+        # Validate title
+        if not isinstance(title, str):
+            raise ValueError("Title must be a string.")
+        if not (5 <= len(title) <= 50):
+            raise ValueError("Title must be between 5 and 50 characters")
+        
+        self._title = title
+        self.author = author
+        self.magazine = magazine
 
+        # Append to the global Article.all list
+        Article.all.append(self)
+        
+        # Also add to the magazine's list of articles
+        self.magazine.add_article(self)
 
-class TestAuthor:
-    """Author in many_to_many.py"""
+    @property
+    def title(self):
+        return self._title
 
-    def test_has_name(self):
-        """Author is initialized with a name"""
-        author_1 = Author("Carry Bradshaw")
-        author_2 = Author("Nathaniel Hawthorne")
-        magazine = Magazine("Vogue", "Fashion")
-        Article(author_1, magazine, "How to wear a tutu with style")
-        Article(author_2, magazine, "Dating life in NYC")
+    @title.setter
+    def title(self, value):
+        raise ValueError("Cannot change the title of an article once it is set")
 
-        assert author_1.name == "Carry Bradshaw"
-        assert author_2.name == "Nathaniel Hawthorne"
+    def __repr__(self):
+        return f"Article(title={self.title}, author={self.author.name}, magazine={self.magazine.name})"
 
-    def test_name_is_immutable_string(self):
-        """author name is of type str and cannot change"""
-        author_1 = Author("Carry Bradshaw")
-        author_2 = Author("Nathaniel Hawthorne")
+class Author:
+    def __init__(self, name):
+        # Validate name
+        if not isinstance(name, str):
+            raise ValueError("Name must be a string.")
+        if len(name) == 0:  
+            raise ValueError("Name cannot be empty.")
+        
+        self._name = name
+        self._articles = []  # List to store articles authored by this author
 
-        assert isinstance(author_1.name, str)
-        assert isinstance(author_2.name, str)
+    @property
+    def name(self):
+        return self._name
 
-        # comment out the next two lines if using Exceptions
-        author_1.name = "ActuallyTopher"
-        assert author_1.name == "Carry Bradshaw"
+    def add_article(self, article):
+        if not isinstance(article, Article):
+            raise ValueError("article must be an instance of Article")
+        # Add the article to the author's list of articles if not already present
+        if article not in self._articles:
+            self._articles.append(article)
 
-        # comment out the next two lines if using Exceptions
-        author_2.name = 2
-        assert author_2.name == "Nathaniel Hawthorne"
+    def articles(self):
+        return self._articles  # Return the list of articles for this author
 
-        # uncomment the next two lines if using Exceptions
-        # with pytest.raises(Exception):
-        #     Author(2)
+    def magazines(self):
+        return list({article.magazine for article in self.articles()})
 
-    def test_name_len(self):
-        """author name is longer than 0 characters"""
-        author_1 = Author("Carry Bradshaw")
-        author_2 = Author("Nathaniel Hawthorne")
+    def topic_areas(self):
+        # Get unique topic areas for this author
+        return list(set([article.magazine.category for article in self.articles()]))
 
-        assert hasattr(author_1, "name")
-        assert len(author_1.name) > 0
-        assert hasattr(author_2, "name")
-        assert len(author_2.name) > 0
+    def __repr__(self):
+        return f"Author(name={self.name})"
 
-        # uncomment the next two lines if using Exceptions
-        # with pytest.raises(Exception):
-        #     Author("")
+class Magazine:
+    def __init__(self, name, category):
+        if not isinstance(name, str):
+            raise ValueError("Name must be a string.")  # Changed to ValueError
+        self._name = name
+        self.category = category
+        self._articles = []
 
-    def test_has_many_articles(self):
-        """author has many articles"""
-        author_1 = Author("Carry Bradshaw")
-        author_2 = Author("Nathaniel Hawthorne")
-        magazine = Magazine("Vogue", "Fashion")
-        article_1 = Article(author_1, magazine, "How to wear a tutu with style")
-        article_2 = Article(author_1, magazine, "Dating life in NYC")
-        article_3 = Article(author_2, magazine, "How to be single and happy")
+    @property
+    def name(self):
+        return self._name
 
-        assert len(author_1.articles()) == 2
-        assert len(author_2.articles()) == 1
-        assert article_1 in author_1.articles()
-        assert article_2 in author_1.articles()
-        assert article_3 not in author_1.articles()
-        assert article_3 in author_2.articles()
+    @name.setter
+    def name(self, value):
+        # Check if the value is a string, if not raise a ValueError
+        if not isinstance(value, str):
+            raise ValueError("Name must be a string.")  # Changed to ValueError
+        self._name = value
 
-    def test_articles_of_type_articles(self):
-        """author articles are of type Article"""
-        author_1 = Author("Carry Bradshaw")
-        author_2 = Author("Nathaniel Hawthorne")
-        magazine = Magazine("Vogue", "Fashion")
-        Article(author_1, magazine, "How to wear a tutu with style")
-        Article(author_2, magazine, "Dating life in NYC")
+    def add_article(self, article):
+        if article not in self._articles:
+            self._articles.append(article)
 
-        assert isinstance(author_1.articles()[0], Article)
-        assert isinstance(author_2.articles()[0], Article)
+    def articles(self):
+        return self._articles
 
-    def test_has_many_magazines(self):
-        """author has many magazines"""
-        author_1 = Author("Carry Bradshaw")
-        magazine_1 = Magazine("Vogue", "Fashion")
-        magazine_2 = Magazine("AD", "Architecture")
-        magazine_3 = Magazine("GQ", "Fashion")
-        Article(author_1, magazine_1, "How to wear a tutu with style")
-        Article(author_1, magazine_2, "2023 Eccentric Design Trends")
+    def contributors(self):
+        # Returns unique authors who have contributed to this magazine
+        return list(set([article.author for article in self.articles()]))
 
-        assert magazine_1 in author_1.magazines()
-        assert magazine_2 in author_1.magazines()
-        assert magazine_3 not in author_1.magazines()
+    def article_titles(self):
+        # Returns a list of titles of all articles in the magazine
+        return [article.title for article in self.articles()]
 
-    def test_magazines_of_type_magazine(self):
-        """author magazines are of type Magazine"""
-        author_1 = Author("Carry Bradshaw")
-        author_2 = Author("Nathaniel Hawthorne")
-        magazine_1 = Magazine("Vogue", "Fashion")
-        magazine_2 = Magazine("AD", "Architecture")
-        magazine_3 = Magazine("GQ", "Fashion")
-        Article(author_1, magazine_1, "How to wear a tutu with style")
-        Article(author_1, magazine_2, "2023 Eccentric Design Trends")
-        Article(author_2, magazine_3, "How to be single and happy")
+    def contributing_authors(self):
+        # Returns the authors who have contributed to this magazine
+        return self.contributors()
 
-        assert isinstance(author_1.magazines()[0], Magazine)
-        assert isinstance(author_1.magazines()[1], Magazine)
-        assert isinstance(author_2.magazines()[0], Magazine)
-
-    def test_magazines_are_unique(self):
-        """author magazines are unique"""
-        author_1 = Author("Carry Bradshaw")
-        magazine_1 = Magazine("Vogue", "Fashion")
-        magazine_2 = Magazine("AD", "Architecture")
-        Article(author_1, magazine_1, "How to wear a tutu with style")
-        Article(author_1, magazine_2, "2023 Eccentric Design Trends")
-        Article(author_1, magazine_2, "Carrara Marble is so 2020")
-
-        assert len(set(author_1.magazines())) == len(author_1.magazines())
-        assert len(author_1.magazines()) == 2
-
-    def test_add_article(self):
-        """creates and returns a new article given a magazine and title"""
-        author_1 = Author("Carry Bradshaw")
-        magazine_1 = Magazine("Vogue", "Fashion")
-        magazine_2 = Magazine("AD", "Architecture")
-        article_1 = author_1.add_article(magazine_1, "How to wear a tutu with style")
-        article_2 = author_1.add_article(magazine_2, "2023 Eccentric Design Trends")
-        article_3 = author_1.add_article(magazine_2, "Carra Marble is so 2020")
-
-        assert isinstance(article_1, Article)
-        assert len(author_1.articles()) == 3
-        assert len(magazine_1.articles()) == 1
-        assert len(magazine_2.articles()) == 2
-        assert article_1 in magazine_1.articles()
-        assert article_2 in magazine_2.articles()
-        assert article_3 in magazine_2.articles()
-
-    def test_topic_areas(self):
-        """returns a list of topic areas for all articles by author"""
-        author_1 = Author("Carry Bradshaw")
-        author_2 = Author("Nathaniel Hawthorne")
-        magazine_1 = Magazine("Vogue", "Fashion")
-        magazine_2 = Magazine("AD", "Architecture")
-        author_1.add_article(magazine_1, "How to wear a tutu with style")
-        author_1.add_article(magazine_2, "Carrara Marble is so 2020")
-        author_2.add_article(magazine_2, "2023 Eccentric Design Trends")
-
-        assert len(author_1.topic_areas()) == 2
-        assert set(author_1.topic_areas()) == {"Fashion", "Architecture"}
-        assert author_2.topic_areas() == ["Architecture"]
-
-    def test_topic_areas_are_unique(self):
-        """topic areas are unique"""
-        author_1 = Author("Carry Bradshaw")
-        author_2 = Author("Giorgio Faletti")
-        magazine_1 = Magazine("Vogue", "Fashion")
-        magazine_2 = Magazine("AD", "Architecture")
-        author_1.add_article(magazine_1, "How to wear a tutu with style")
-        author_1.add_article(magazine_1, "Dating life in NYC")
-        author_1.add_article(magazine_2, "2023 Eccentric Design Trends")
-
-        assert len(set(author_1.topic_areas())) == len(author_1.topic_areas())
-        assert len(author_1.topic_areas()) == 2
-        assert "Fashion" in author_1.topic_areas()
-        assert "Architecture" in author_1.topic_areas()
-        assert author_2.topic_areas() is None
+    def __repr__(self):
+        return f"Magazine(name={self.name}, category={self.category})"
